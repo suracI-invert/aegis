@@ -348,9 +348,6 @@ FOR EACH ROW EXECUTE FUNCTION \"{schema}\".activity_tasks_notify();""")
                 .order_by(WorkflowExecutionModel.created_at.asc())
                 .limit(limit)
             )
-            print(
-                f"Querying for incomplete workflows with statement: {stmt.compile(compile_kwargs={'literal_binds': True})}"
-            )
             result = await s.execute(stmt)
             return [_convert_to_execution(row) for row in result.scalars().all()]
 
