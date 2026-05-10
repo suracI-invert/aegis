@@ -46,9 +46,9 @@ class Client:
     async def start_workflow[**P, T](
         self,
         workflow: WorkflowDefinition[P, T],
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] | None = None,
         correlation_id: str | None = None,
-        *args: P.args,
-        **kwargs: P.kwargs,
     ) -> UUID:
         """Start a new workflow execution.
 
