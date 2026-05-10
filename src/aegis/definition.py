@@ -242,8 +242,8 @@ def workflow[**P, T](
     *,
     name: str | None = None,
 ) -> (
-    WorkflowDefinition
-    | Callable[[Callable[P, Coroutine[Any, Any, T]]], WorkflowDefinition]
+    WorkflowDefinition[P, T]
+    | Callable[[Callable[P, Coroutine[Any, Any, T]]], WorkflowDefinition[P, T]]
 ):
     """Decorator to define a workflow.
 
@@ -255,7 +255,7 @@ def workflow[**P, T](
         WorkflowDefinition wrapping the function.
     """
 
-    def decorator(f: Callable[P, Coroutine[Any, Any, T]]) -> WorkflowDefinition:
+    def decorator(f: Callable[P, Coroutine[Any, Any, T]]) -> WorkflowDefinition[P, T]:
         return WorkflowDefinition(f, name=name)
 
     if func is not None:
@@ -269,9 +269,9 @@ def activity[**P, T](
     name: str | None = None,
     retry_policy: RetryPolicy | None = None,
 ) -> (
-    ActivityDefinition
+    ActivityDefinition[P, T]
     | Callable[
-        [Callable[P, Coroutine[Any, Any, T]] | Callable[P, T]], ActivityDefinition
+        [Callable[P, Coroutine[Any, Any, T]] | Callable[P, T]], ActivityDefinition[P, T]
     ]
 ):
     """Decorator to define an activity.
@@ -287,7 +287,7 @@ def activity[**P, T](
 
     def decorator(
         f: Callable[P, Coroutine[Any, Any, T]] | Callable[P, T],
-    ) -> ActivityDefinition:
+    ) -> ActivityDefinition[P, T]:
         return ActivityDefinition(f, name=name, retry_policy=retry_policy)
 
     if func is not None:

@@ -7,13 +7,13 @@ from typing import Any
 from uuid import UUID
 
 from aegis.database import Database
+from aegis.definition import WorkflowDefinition
 from aegis.models import (
     EventType,
     HistoryEvent,
     WorkflowExecution,
     WorkflowStatus,
 )
-from aegis.definition import WorkflowDefinition
 
 
 class Client:
@@ -43,12 +43,12 @@ class Client:
         """Async context manager exit."""
         await self.close()
 
-    async def start_workflow(
+    async def start_workflow[**P, T](
         self,
-        workflow: WorkflowDefinition,
-        args: tuple[Any, ...] = (),
-        kwargs: dict[str, Any] | None = None,
+        workflow: WorkflowDefinition[P, T],
         correlation_id: str | None = None,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> UUID:
         """Start a new workflow execution.
 
@@ -64,12 +64,12 @@ class Client:
         if self._db is None:
             raise RuntimeError("Client not connected. Call connect() first.")
 
-        kwargs = kwargs or {}
+        _kwargs = kwargs or {}
 
         # Create execution record
         execution = WorkflowExecution.create(
             workflow_name=workflow.name,
-            input_data={"args": list(args), "kwargs": kwargs},
+            input_data={"args": list(args), "kwargs": _kwargs},
             correlation_id=correlation_id,
         )
         await self._db.create_execution(execution)
@@ -78,7 +78,7 @@ class Client:
         event = HistoryEvent.create(
             execution_id=execution.execution_id,
             event_type=EventType.WORKFLOW_STARTED,
-            event_data={"args": list(args), "kwargs": kwargs},
+            event_data={"args": list(args), "kwargs": _kwargs},
             sequence_number=1,
         )
         await self._db.append_event(event)
@@ -209,3 +209,24 @@ class Client:
             raise RuntimeError("Client not connected. Call connect() first.")
 
         return await self._db.get_events(execution_id)
+
+    async def recover_workflow(self, execution_id: UUID) -> bool:
+        """Attempt to recover a failed workflow.
+
+        Args:
+            execution_id: The execution ID to recover.
+
+        Returns:
+            True if recovery initiated, False if not found or not failed.
+        """
+        if self._db is None:
+            raise RuntimeError("Client not connected. Call connect() first.")
+
+        execution = await self._db.get_execution(execution_id)
+        if execution is None or execution.status != WorkflowStatus.FAILED:
+            return False
+
+        # Update status to RUNNING to allow worker to pick it up
+        return await self._db.update_execution_status(
+            execution_id, WorkflowStatus.RUNNING
+        )
